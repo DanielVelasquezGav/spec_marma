@@ -1,0 +1,1503 @@
+###Estimation function third-order spectral mestimation for MARMA models 
+
+est_l2_l3=function(p,s,q,r,y){
+  T=length(y)
+  ##AR(1,0)
+  if ((p==1 & s==0 & q==0 & r==0)) {
+    gmle=arima(y, order = c(1,0,0), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1-phi0T1*exp(-1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(1/MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1){
+      phi1=param[1]
+
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1-phi1*exp(-1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(1/AR_1a)))
+      f_2T=(k_kTa/(2*pi))*1/AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(1/MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1-phi1*exp(-1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1-phi0T1*exp(-1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(1/MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(1/MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(1/MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(-1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d=sqrt(var1/T)
+
+    
+  }
+  ##AR(2,0)
+  if ((p==2 & s==0 & q==0 & r==0)) {
+    gmle=arima(y, order = c(2,0,0), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1-phi0T1*exp(-1i*lambda[1:(T-1)])-phi0T2*exp(-2*1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(1/MA_01))
+
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1-phi1*exp(-1i*lambda2[1:(T-1)])-phi2*exp(-2*1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(1/AR_1a)))
+      f_2T=(k_kTa/(2*pi))*1/AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(1/MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1-phi1*exp(-1i*lambda1)-phi2*exp(-2*1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1-phi0T1*exp(-1i*lambda1)-phi0T2*exp(-2*1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(1/MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(1/MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(1/MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(-1i*lambda2[1:(T)])-phi2_3*exp(-2*1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  ##AR(0,1)
+  if ((p==0 & s==1 & q==0 & r==0)) {
+    gmle=arima(y, order = c(1,0,0), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1-phi0T1*exp(-1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(1/MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1){
+      phi1=param[1]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1-phi1*exp(1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(1/AR_1a)))
+      f_2T=(k_kTa/(2*pi))*1/AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(1/MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1-phi1*exp(1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1-phi0T1*exp(-1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(1/MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(1/MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(1/MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d=sqrt(var1/T)
+    
+    
+  }
+  ##AR(0,2)
+  if ((p==0 & s==2 & q==0 & r==0)) {
+    gmle=arima(y, order = c(2,0,0), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1-phi0T1*exp(-1i*lambda[1:(T-1)])-phi0T2*exp(-2*1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(1/MA_01))
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1-phi1*exp(1i*lambda2[1:(T-1)])-phi2*exp(2*1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(1/AR_1a)))
+      f_2T=(k_kTa/(2*pi))*1/AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(1/MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1-phi1*exp(1i*lambda1)-phi2*exp(2*1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1-phi0T1*exp(-1i*lambda1)-phi0T2*exp(-2*1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(1/MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(1/MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(1/MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(1i*lambda2[1:(T)])-phi2_3*exp(2*1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  ##AR(1,1)
+  if ((p==1 & s==1 & q==0 & r==0)) {
+    gmle=arima(y, order = c(2,0,0), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1-phi0T1*exp(-1i*lambda[1:(T-1)])-phi0T2*exp(-2*1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(1/MA_01))
+  
+    
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1-phi1*exp(-1i*lambda2[1:(T-1)]))*(1-phi2*exp(1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(1/AR_1a)))
+      f_2T=(k_kTa/(2*pi))*1/AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(1/MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1-phi1*exp(-1i*lambda1))*(1-phi2*exp(1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1-phi0T1*exp(-1i*lambda1)-phi0T2*exp(-2*1i*lambda1))
+      #MAT=(1-phi0T1_2*exp(-1i*lambda1)-phi0T2_2*exp(-2*1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(1/MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(1/MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(1/MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(-1i*lambda2[1:(T)]))*(1-phi2_3*exp(1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    s_d1
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    s_d2
+    
+    s_d=c(s_d1,s_d2)
+    
+    
+  }
+  #MA(1,0)
+  if ((p==0 & s==0 & q==1 & r==0)) {
+    gmle=arima(y, order = c(0,0,1), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T1*exp(-1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1){
+      phi1=param[1]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1+phi1*exp(-1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1+phi1*exp(-1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T1*exp(-1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=1/(1+phi1_3*exp(-1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d=sqrt(var1/T)
+    
+    
+  }
+  #MA(2,0)
+  if ((p==0 & s==0 & q==2 & r==0)) {
+    gmle=arima(y, order = c(0,0,2), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T1*exp(-1i*lambda[1:(T-1)])+phi0T2*exp(-2*1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1+phi1*exp(-1i*lambda2[1:(T-1)])+phi2*exp(-2*1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1+phi1*exp(-1i*lambda1)+phi2*exp(-2*1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T1*exp(-1i*lambda1)+phi0T2*exp(-2*1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=1/(1+phi1_3*exp(-1i*lambda2[1:(T)])+phi2_3*exp(-2*1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  #MA(0,1)
+  if ((p==0 & s==0 & q==0 & r==1)) {
+    gmle=arima(y, order = c(0,0,1), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T1*exp(-1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1){
+      phi1=param[1]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1+phi1*exp(1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1+phi1*exp(1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T1*exp(-1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=1/(1+phi1_3*exp(1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d=sqrt(var1/T)
+    
+    
+  }
+  #MA(0,2)
+  if ((p==0 & s==0 & q==0 & r==2)) {
+    gmle=arima(y, order = c(0,0,2), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T1*exp(-1i*lambda[1:(T-1)])+phi0T2*exp(-2*1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1+phi1*exp(1i*lambda2[1:(T-1)])+phi2*exp(2*1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1+phi1*exp(1i*lambda1)+phi2*exp(2*1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T1*exp(-1i*lambda1)+phi0T2*exp(-2*1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=1/(1+phi1_3*exp(1i*lambda2[1:(T)])+phi2_3*exp(2*1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  #MA(1,1)
+  if ((p==0 & s==0 & q==1 & r==1)) {
+    gmle=arima(y, order = c(0,0,2), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T1*exp(-1i*lambda[1:(T-1)])+phi0T2*exp(-2*1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs((1+phi1*exp(-1i*lambda2[1:(T-1)]))*(1+phi2*exp(1i*lambda2[1:(T-1)])))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=((1+phi1*exp(-1i*lambda1))*(1+phi2*exp(1i*lambda1)))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T1*exp(-1i*lambda1)+phi0T2*exp(-2*1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=1/((1+phi1_3*exp(-1i*lambda2[1:(T)]))*(1+phi2_3*exp(1i*lambda2[1:(T)])))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  #MARMA(1,0,1,0)
+  if ((p==1 & s==0 & q==1 & r==0)) {
+    gmle=arima(y, order = c(1,0,1), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T2*exp(-1i*lambda[1:(T-1)]))^2/abs(1-phi0T1*exp(-1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs(1+phi2*exp(-1i*lambda2[1:(T-1)]))^2/abs(1-phi1*exp(-1i*lambda2[1:(T-1)]))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1+phi2*exp(-1i*lambda1))/(1-phi1*exp(-1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T2*exp(-1i*lambda1))/(1-phi0T1*exp(-1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(-1i*lambda2[1:(T)]))/(1+phi2_3*exp(-1i*lambda2[1:(T)]))
+
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  #MARMA(0,1,1,0)
+  if ((p==0 & s==1 & q==1 & r==0)) {
+    gmle=arima(y, order = c(1,0,1), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T2*exp(-1i*lambda[1:(T-1)]))^2/abs(1-phi0T1*exp(-1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs(1+phi2*exp(-1i*lambda2[1:(T-1)]))^2/abs(1-phi1*exp(1i*lambda2[1:(T-1)]))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1+phi2*exp(-1i*lambda1))/(1-phi1*exp(1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T2*exp(-1i*lambda1))/(1-phi0T1*exp(-1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(1i*lambda2[1:(T)]))/(1+phi2_3*exp(-1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  #MARMA(1,0,0,1)
+  if ((p==1 & s==0 & q==0 & r==1)) {
+    gmle=arima(y, order = c(1,0,1), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T2*exp(-1i*lambda[1:(T-1)]))^2/abs(1-phi0T1*exp(-1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs(1+phi2*exp(1i*lambda2[1:(T-1)]))^2/abs(1-phi1*exp(-1i*lambda2[1:(T-1)]))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1+phi2*exp(1i*lambda1))/(1-phi1*exp(-1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T2*exp(-1i*lambda1))/(1-phi0T1*exp(-1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(-1i*lambda2[1:(T)]))/(1+phi2_3*exp(1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  #MARMA(0,1,0,1)
+  if ((p==0 & s==1 & q==0 & r==1)) {
+    gmle=arima(y, order = c(1,0,1), method = "ML",include.mean = FALSE)
+    gmle
+    phi0T1=coef(gmle)[1]
+    phi0T2=coef(gmle)[2]
+    
+    lambda<-(2*pi*(1:(T)))/T
+    MA_01=abs(1+phi0T2*exp(-1i*lambda[1:(T-1)]))^2/abs(1-phi0T1*exp(-1i*lambda[1:(T-1)]))^2
+    per<-(as.numeric(abs(fft(y))^2/(2*pi*T)))[-1]
+    k_2T<-(2*pi/T)*sum(per[1:(T-1)]/(MA_01))
+    
+    
+    
+    L_2T_3T<-function(param, phi1,phi2){
+      phi1=param[1]
+      phi2=param[2]
+      
+      lambda2<-(2*pi*(1:(T-1)))/T
+      AR_1a=abs(1+phi2*exp(1i*lambda2[1:(T-1)]))^2/abs(1-phi1*exp(1i*lambda2[1:(T-1)]))^2
+      k_kTa=(2*pi/T)*sum(Re(per[1:(T-1)]/(AR_1a)))
+      f_2T=(k_kTa/(2*pi))*AR_1a
+      L_2T_theta=((2*pi)^2/(2*2*k_2T^2*T))*sum(abs(per-f_2T)^2/(MA_01))
+      
+      
+      k<- 0:(T-1)
+      lambda=(2*pi*k/T)
+      fou=NULL
+      for (j in 1:(2*T+1)) {
+        fou[j]=sum(y*exp(-1i*(lambda)*(j-1)))
+      }
+      fin=function(x) {
+        v <- x + 1
+        fou[v]
+      }
+      
+      k1<- 1:(2*T-1)
+      lambda1=(2*pi*k1/T)
+      
+      MA=(1+phi2*exp(1i*lambda1))/(1-phi1*exp(1i*lambda1))
+      MA1=function(x){
+        v=x+1
+        MA[v]
+      }
+      
+      MAT=(1+phi0T2*exp(-1i*lambda1))/(1-phi0T1*exp(-1i*lambda1))
+      MA0=function(x){
+        v=x+1
+        MAT[v]
+      }
+      
+      bis=matrix(ncol=T, nrow=T)
+      MA2=matrix(ncol=T, nrow=T)
+      MA_0=matrix(ncol=T, nrow=T)
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          bis[l,m]=(fin(l-1)*fin(m-1)*Conj(fin(l + m-2)))/(((2*pi)^2)*T)
+          MA_0[l,m]=MA0(l-1)*MA0(m-1)*Conj(MA0(l + m-2))
+        }
+      }
+      
+      for (l in 1:T) {
+        for (m in 1:T) {
+          MA2[l,m]=MA1(l-1)*MA1(m-1)*Conj(MA1(l + m-2))
+        }
+      }
+      
+      
+      k_3t=(2*pi/T)^2*sum(Re(bis[2:(T),2:(T)]/(MA2[1:(T-1),1:(T-1)])))
+      f_3t=k_3t*(MA2[1:(T-1),1:(T-1)])/(2*pi)^2
+      L3T=((2*pi)^4/(6*k_2T^3*T^2))*sum(abs(bis[2:(T),2:(T)]-f_3t[1:(T-1),1:(T-1)])^2/(abs(MA_0[1:(T-1),1:(T-1)])^2))
+      R=0.5*L3T+0.5*L_2T_theta
+      R
+    }
+    
+    hat_arma1001_inside_L2_L3=optim(c(phi0T1,phi0T2),L_2T_3T,gr = NULL,method = c("L-BFGS-B"),lower = -1, upper = 1,y)
+    hat_arma1001_inside_L2_L3$par
+    hat_arma1001_inside_L2_L3$value
+    
+    phi1_3=hat_arma1001_inside_L2_L3$par[1]
+    phi2_3=hat_arma1001_inside_L2_L3$par[2]
+    
+    z=fft(y)
+    lambda2<-(2*pi*(1:(T)))/T
+    AR_1a=(1-phi1_3*exp(1i*lambda2[1:(T)]))/(1+phi2_3*exp(1i*lambda2[1:(T)]))
+    
+    res_d=z*AR_1a
+    res_t=fft(res_d, inverse = TRUE)/T
+    
+    
+    p=0.5
+    q=0.5
+    cum=all.cumulants(all.moments(Re(res_t), order.max=4))
+    zet=cum[3]/(var(Re(res_t)))^(3/2)
+    k1=cum[4]/(var(Re(res_t)))^2
+    
+    nu=1/(1-phi1_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d1=sqrt(var1/T)
+    
+    nu=1/(1-phi2_3^2)
+    var1=(4*p^2+(p^2/4*k1+q^2/2+p*q)*zet^2)/((2*p+q/2*zet^2)*nu)
+    s_d2=sqrt(var1/T)
+    
+    s_d=c(s_d1,s_d2)
+    
+  }
+  
+  value<-list(GL=gmle, GL_res=as.vector(residuals(gmle)), est_fun=hat_arma1001_inside_L2_L3$value, est_par=hat_arma1001_inside_L2_L3$par, est_res=res_t,est_par_sd=s_d)
+  attr(value, "class")
+  value
+  
+}
